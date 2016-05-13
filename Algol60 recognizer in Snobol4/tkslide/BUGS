@@ -1,0 +1,19 @@
+Known bugs:
+- WINDOWS: Spitbol interpreter seems to dislike windows style paths with spaces. 
+  If you plan to use spitbol with tkslide store "tkslide" folder in location 
+  without spaces (like "c:\tkslide" or "e:\tmp\tkslide")
+
+- cannot start with eTcl 1 rc 23
+
+- not exactly a bug -- it doesn't work with 16bit SNOBOLs from Catspaw, Inc. 
+
+- syntax highlighting needs some significant reworking.
+
+- there's no 'maximize' button under KDE 3.2.x w/TCL 8.4.4.
+  Fix: update TCL to 8.4.7+
+  Workaround: Resize manually 
+
+- interactive (using keyboard entry) programs may hang the IDE
+
+- to stop program which entered endless loop one has to kill the snobol4
+  process.

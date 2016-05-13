@@ -1,0 +1,60 @@
+Object subclass: mySwitch [
+|val default break iterator count temp|
+
+init [
+val := Dictionary new.
+break := Dictionary new.
+iterator := Array new: 100.
+count := 1
+]
+
+addCase:aCase and:aCode [
+val at: aCase put: aCode.
+break at: aCase put: false. "Put false for no break statement"
+iterator at: count put: aCase.
+count := count + 1
+]
+
+addCase:aCase and:aCode and:aBreak[
+val at: aCase put: aCode.
+iterator at: count put: aCase.
+count := count + 1.
+(aBreak = 'break') ifTrue: [break at: aCase put: true] "Put true for break statement iff it was written as 'break'"
+ifFalse: [break at: aCase put: false] "Put false for invalid break statement"
+]
+
+switch:aCase [
+(break at: aCase) ifTrue: [ "If break was declared"
+(val includesKey: aCase) ifTrue: [ "If case value is found"
+^val at: aCase] ifFalse: [
+^default] "Do the default if case was not found"
+] ifFalse: [ "If break was not declared"
+(iterator indexOf: aCase) to: (break size) do: [ :i | "Loop from the current case to default"
+temp := iterator at: i.
+(break at: temp) ifTrue: [ "If break was declared"
+(val includesKey: temp) ifTrue: [^val at: temp] "If case value is found"
+ifFalse: [^default] "Do the default if case was not found"
+] ifFalse:[ "If break was not declared"
+(i = break size) ifTrue:[val at: temp. "If this is the last case, execute the block of code"
+^default] "And then execute and return the result of default and quit"
+ifFalse: [val at: temp] "Else don't return, just execute and loop again"
+]
+]
+]
+]
+
+default:aCode [
+default := aCode.
+]
+
+]
+
+mySwitch class extend [
+new [
+|s|
+s := super new.
+s init.
+^s
+]
+]
+

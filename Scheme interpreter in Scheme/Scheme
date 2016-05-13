@@ -1,0 +1,171 @@
+(define interpret #f)
+
+(define top-level-env `((+ ,+) (- ,-) (> ,>) (< ,<) (1 ,1) (2 ,2) (3 ,3)))
+
+(define top-level-value 
+              (lambda (id) 
+                  (let (( pair (assq id top-level-env)))
+                        (if pair
+                            (cadr pair)
+                            (id)))))
+
+(define set-top-level-value! 
+              (lambda (id val) 
+                  (let (( pair (assq id top-level-env)))
+                        (if (null? pair)
+                            (id)
+                            (set! top-level-env (cons (list id val) top-level-env))))))
+(define expand #f)
+
+(set! expand (lambda (exp)
+  (cond    
+    ((symbol? exp) exp) ;If expression is symbol, returns that expression
+    ((number? exp) exp) ;If expression is number, returns that expression
+    ((pair? exp)
+      (case (car exp)   
+        ((and)
+          (if (null? (cdr exp)) ;Returns true if theres no test expression
+           #t
+	   (if (null? (cddr exp))
+	     (expand(cadr exp)) ;Returns the test expression if theres only one test expression
+	     (expand (cons 'let 
+	     (cons (cons (cons 'x (cons (expand(cadr exp)) '()))(cons (cons 'thunk 
+	     (cons (cons 'lambda (cons '() (cons (expand (cons 'and (cddr exp))) '()))) '())) '())) (cons '(if x (thunk) x) '()) ))
+	     ))))
+	
+	((or)
+	  (if (null? (cdr exp)) ;Returns false if theres no test expression
+	   #f
+	   (if (null? (cddr exp))
+	     (expand(cadr exp)) ;Returns the test expression if theres only one test expression
+	     (expand (cons 'let 
+	     (cons (cons (cons 'x (cons (expand(cadr exp)) '()))(cons (cons 'thunk 
+	     (cons (cons 'lambda (cons '() (cons (expand (cons 'and (cddr exp))) '()))) '())) '())) (cons '(if x x (thunk)) '()) ))
+	     ))))
+	
+	((cond)
+	  (if (null? (cdr exp)) ;Returns an expression that gives unspecified value if theres no clause
+	   (cond)
+	   (case (caadr exp)
+		 ((else) (cons 'begin (map (lambda (x) (expand x))(cdadr exp)))) ;Do this if theres an else clause in cond
+		 (else (if (null? (cdadr exp))
+		       (expand (cons 'or (cons (expand(caadr exp)) (cons (expand (cons 'cond (cddr exp))) '()))))
+		       (expand (cons 'if (cons (expand(caadr exp)) (cons (cons 'begin (map (lambda (x) (expand x))(cdadr exp))) (cons (expand (cons 'cond (cddr exp))) '()))))))))))
+	
+	((case)
+	(let ((clauses (cddr exp)))
+	(expand(cons 'let (cons (cons (cons 'key (cons (expand(cadr exp)) '())) '()) 
+	(cons (cons 'cond 
+	(let loopcase ((temp clauses))
+		      (if (null? (cdr temp))
+		      (cons (cons (cons 'memv (cons 'key (cons(cons 'list (caar temp)) '()))) 
+			    (cons (cons (cons 'lambda (cons '() (map (lambda (x) (expand x)) (cdar temp)))) '()) '())) '())
+		      (case (caadr temp)
+		      ((else)
+		      (cons (cons (cons 'memv (cons 'key (cons(cons 'list (caar temp)) '()))) 
+		            (cons (cons (cons 'lambda (cons '() (map (lambda (x) (expand x)) (cdar temp)))) '()) '()))
+		            (cons (cons 'else (cons (cons (cons 'lambda (cons '() (map (lambda (x) (expand x)) (cdadr temp)))) '()) '())) '())))
+		      (else
+		      (cons (cons (cons 'memv (cons 'key (cons(cons 'list (caar temp)) '()))) 
+		            (cons (cons (cons 'lambda (cons '() (map (lambda (x) (expand x)) (cdar temp)))) '()) '()))
+			    (loopcase (cdr temp)))))))
+	)'()))))))
+	
+	((let) 
+	(let ((bindings (cadr exp)))
+	(cons (cons 'lambda 
+	(cons (let loopvlist ((temp bindings)) ;Lists the variables
+	        (if (null? (cdr temp))	      
+	        (cons (caar temp) '())
+	        (cons (caar temp) (loopvlist (cdr temp)))))
+	      (map (lambda (x) (expand x))(cddr exp))))
+	      (let loopilist ((temp bindings)) ;Lists the inits
+	        (if (null? (cdr temp))	      
+		(cons (cadar temp) '())
+	        (cons (cadar temp) (loopilist (cdr temp))))))))
+        
+        ((let*)
+	(expand (if (null? (cadr exp))
+	(cons (cons 'lambda (cons '() (map (lambda (x) (expand x))(cddr exp)))) '()) ;Do this if let* has empty bindings
+	(let ((binding2 (cdadr exp))) ;Else do this if let* has non-empty bindings
+	     (cons 'let (cons (cons (caadr exp)'()) (cons (expand (cons 'let* 
+	     (cons binding2 (cddr exp))
+	)) '())))))))
+	
+	((letrec)
+	(let ((binds (cadr exp)))
+	(expand (cons 'let (cons
+	(let loopletrec ((temp binds)) ;Binds variables to undefined value
+		        (if (null? (cdr temp))
+		        (cons (cons (caar temp) '(1)) '())
+		        (cons (cons (caar temp) '(1)) (loopletrec (cdr temp)))))
+	(let loopletrec2 ((temp binds)) ;Write the second let expression
+		        (if (null? (cdr temp))
+		        (cons (cons 'let (cons (cons (cons 'temp (cdar temp)) '()) (cons (cons 'set! (cons (caar temp) '(temp))) '()))) (map (lambda (x) (expand x))(cddr exp)))
+	                (cons (cons 'let (cons (cons (cons 'temp (cdar temp)) '()) (cons (cons 'set! (cons (caar temp) '(temp))) '()))) (loopletrec2 (cdr temp))))))))))
+		    
+        (else exp)))
+    (else exp))))
+	
+(letrec
+   ((new-env
+    (lambda (idl vals env)
+          (let loopenv((tempid idl)(tempval vals)(tempenv env))
+          	  (if (null? idl) ;Do this if the lambda expression has empty formals
+		  tempenv
+		  (if (null? (cdr tempid))
+		  (cons (list (car tempid) (car tempval)) tempenv)		    
+		  (loopenv (cdr tempid) (cdr tempval) (cons (list (car idl) (car vals)) tempenv)))))))
+
+   (lookup
+    (lambda (id env)
+                ((lambda (id) 
+                  (let (( pair (assq id env))) ;Search for id in the local env
+                        (if pair
+                            (cadr pair) ;Returns the corresponding value if found
+                            (top-level-value id))))id))) ;Else look for the value in top-level-env
+  
+   (assign
+    (lambda (id val env)
+		((lambda (id) 
+                  (let (( pair (assq id env)))
+                        (if (null? pair)
+                            (id)
+                            (set-top-level-value! id val))))id)))
+
+   (exec
+    (lambda (exp env)
+      (cond
+           ((symbol? exp) (lookup exp env))
+           ((number? exp) (lookup exp env))
+           ((pair? exp) 
+             (case  (car exp)
+                   ((quote) (cadr exp))
+                   ((lambda)
+                          (lambda vals
+                                 (exec (cons 'begin (cddr exp))
+                                           (new-env (cadr exp) vals env))))
+                   ((if) 
+                          (if (exec (cadr exp) env)
+                              (exec (caddr exp) env)
+                              (exec (cadddr exp) env)))
+                   ((set!)
+                          (assign (cadr exp)
+                                      (exec (caddr exp) env)
+                                       env))
+                   ((begin)
+                          (let loop ((exps (cdr exp)))
+                              (if (null? (cdr exps))
+                                  (exec (car exps) env)
+                                  (begin
+                                       (exec (car exps) env)
+                                       (loop (cdr exps))))))
+                   (else
+                          (apply (exec (car exp) env)
+                                    (map (lambda (x)  (exec x env))
+                                             (cdr exp))))))
+           (else exp)))))
+
+(set! interpret
+      (lambda (exp)
+            (exec (expand exp) '()))))

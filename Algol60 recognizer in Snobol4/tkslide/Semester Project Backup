@@ -1,0 +1,251 @@
+*	Basic Symbols, Identifiers, Numbers and Strings
+
+	Letter = SPAN("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
+
+	Digit = SPAN("0123456789")
+
+	Empty = ''
+
+	Identifier1 = Letter *Identifier1 | Digit *Identifier1 | ''
+	Identifier = Letter Identifier1	
+
+	Arithmetic = '+' | '-' | '*' | '/' | '^'
+
+	Relational = '=' | '<' | '<=' | '>' | '>=' | '\='
+
+	Logical = '==' | '->' | 'and' | 'or' | 'not'
+
+	Sequential = 'go to' | 'if' | 'then' | 'else' | 'for' | 'do'
+
+	Seperator = ',' | '.' | ':' | ';' | ':=' | '#' | 'step' | 'until' | 'while' | 'comment'
+
+	Bracket = '(' | ')' | '[' | ']' | "'" | 'begin' | 'end'
+
+	Declarator = 'own' | 'Boolean' | 'integer' | 'real' | 'array' | 'switch' | 'procedure'
+
+	Specificator = 'string' | 'label' | 'value'
+
+	Operator = Arithmetic | Relational | Logical | Sequential
+
+	Delimiter = Operator | Seperator | Bracket | Declarator | Specificator
+
+	LogicalValue = 'true' | 'false'
+
+	BasicSymbol = Letter | Digit | LogicalValue | Delimiter
+
+	String = "'" BasicSymbol "'"
+	
+	UnsignedInteger = Digit
+
+	Integer = UnsignedInteger | '+' UnsignedInteger | '-' UnsignedInteger
+
+	DecimalFraction = '.' UnsignedInteger
+
+	DecimalNumber = UnsignedInteger | DecimalFraction | UnsignedInteger DecimalFraction
+
+	Number = DecimalNumber | '+' DecimalNumber | '-' DecimalNumber
+
+*	Variables
+
+	SubscriptExp = *ArithmeticExp
+
+	Subscript = SubscriptExp | SubscriptExp ',' *Subscript
+
+	SubscriptVar = Identifier '[' Subscript ']'
+
+	Variable = Identifier | SubscriptVar
+
+*	Function Designators
+
+	ActualPara = String | *Expression | Identifier
+
+	ParaDelimiter = ',' | ')' Letter ':('
+
+	ActualParaList = ActualPara | ActualParaList ParaDelimiter ActualPara
+
+	ActualParaPart = Empty | '(' ActualParaList ')'
+
+	FunctionDesignator = Identifier ActualParaPart
+
+*	Arithmetic Expressions (Actual ArithmeticExp definition is delayed)
+
+	AddingOperator = '+' | '-'
+
+	MultiplyingOperator = '*' | '/'
+
+	Primary = DecimalNumber | Variable | FunctionDesignator | '(' *ArithmeticExp ')'
+	
+	Factor = Primary | Primary '^' *Factor
+	
+	Term = Factor | Factor MultiplyingOperator *Term
+
+	SimpleArithmeticExp1 = AddingOperator Term | AddingOperator Term *SimpleArithmeticExp1
+	SimpleArithmeticExp2 = Term | Term AddingOperator *SimpleArithmeticExp2
+	SimpleArithmeticExp = SimpleArithmeticExp2 | SimpleArithmeticExp1
+
+	IfClause = 'if ' *BooleanExp ' then '	
+
+*	Boolean Expressions
+
+	Relation = *ArithmeticExp Relational *ArithmeticExp
+
+	BoolPrimary = LogicalValue | Variable | FunctionDesignator | Relation | '(' *BooleanExp ')'
+
+	BoolSecondary = BoolPrimary | 'not ' BoolPrimary
+
+	BoolFactor = BoolSecondary | BoolSecondary ' and ' *BoolFactor
+
+	BoolTerm = BoolFactor | BoolFactor ' or ' *BoolTerm
+
+	Implication = BoolTerm | BoolTerm  '->' *Implication
+
+	SimpleBool = Implication | Implication '==' *SimpleBool
+
+	BooleanExp = SimpleBool | IfClause SimpleBool ' else ' *BooleanExp
+
+*	Designational Expressions
+
+	Label = Identifier | UnsignedInteger
+
+	SwitchDesign = Identifier '[' *ArithmeticExp ']'
+
+	SimpleDesignExp = Label | SwitchDesign | '(' *DesignationalExp ')'
+
+	DesignationalExp = SimpleDesignExp | IfClause SimpleDesignExp ' else ' *DesignationalExp
+
+*	General Expression
+
+	Expression = *ArithmeticExp | BooleanExp | DesignationalExp
+
+*	Type Declarations
+
+	TypeList = Identifier | Identifier ', ' *TypeList
+
+	Type = 'real ' | 'integer ' | 'Boolean '
+
+	LocalOrOwnType = Type | 'own ' Type
+
+	TypeDeclaration = LocalOrOwnType TypeList
+
+*	Array Declarations
+
+	LowerBound = *ArithmeticExp
+
+	UpperBound = *ArithmeticExp
+
+	BoundPair = LowerBound ':' UpperBound
+
+	BoundPairList = BoundPair | BoundPair ',' *BoundPairList
+
+	ArraySegment = Identifier '[' BoundPairList ']' | Identifier ',' *ArraySegment
+
+	ArrayList = ArraySegment | ArraySegment ',' *ArrayList
+
+	ArrayDeclaration = 'array ' ArrayList | LocalOrOwnType 'array ' ArrayList
+
+*	Switch Declarations
+	
+	SwitchList = DesignationalExp | DesignationalExp ',' *SwitchList
+
+	SwitchDeclaration = 'switch ' Identifier ' := ' SwitchList
+
+*	Procedure Declarations
+
+	FormalParaList = Identifier | Identifier ParaDelimiter *FormalParaList
+
+	FormalParaPart = Empty | '(' FormalParaList ')'
+	
+	IdentifierList = Identifier | Identifier ',' *IdentifierList
+
+	ValuePart = 'value ' IdentifierList ' ; ' | Empty
+
+	Specifier = 'string ' | Type | 'array ' | Type 'array ' | 'label ' | 'switch ' | 
++	'procedure ' | Type 'procedure '
+
+	SpecificationPart = Empty | Specifier IdentifierList ' ; ' | Specifier IdentifierList ' ; '
++	*SpecificationPart
+
+	ProcedureHeading = Identifier FormalParaPart ' ; ' ValuePart SpecificationPart
+
+	ProcedureBody = *Statement | Code
+
+	ProcedureDeclaration = 'procedure ' ProcedureHeading ProcedureBody | Type 'procedure '
++	ProcedureHeading ProcedureBody	
+	
+*	General Declaration
+
+	Declaration = TypeDeclaration | ArrayDeclaration | SwitchDeclaration | ProcedureDeclaration
+
+*	Assignment Statements
+	
+	Left = Variable ' := '
+
+	LeftList = Left | Left *LeftList
+
+	AssignmentStatement = LeftList *ArithmeticExp | LeftList BooleanExp
+
+*	Go To Statements
+
+	GoToStatement = 'go to ' DesignationalExp
+
+*	Dummy Statement
+
+	DummyStatement = Empty
+
+*	Conditional Statements
+
+	IfStatement = IfClause *UnconditionalStatement | Label ':' *IfStatement
+
+	ConditionalStatement = IfStatement | IfStatement ' else ' *Statement
+
+*	For Statements (Actual ForStatement definition is delayed till the end)
+
+	ForListElement = *ArithmeticExp | *ArithmeticExp ' step ' *ArithmeticExp ' until ' 
++	*ArithmeticExp | *ArithmeticExp ' while ' BooleanExp
+
+	ArithmeticExp = SimpleArithmeticExp | IfClause SimpleArithmeticExp ' else ' *ArithmeticExp
+
+	ForList = ForListElement | ForListElement ', ' *ForList
+
+	ForClause = 'for ' Variable ' := ' ForList ' do '	
+
+*	Procedure Statements
+
+	ProcedureStatement = Identifier ActualParaPart
+
+*	Comment
+
+	CommentStatement = 'comment : ' BasicSymbol ' ; '
+
+*	Compound Statements and Blocks
+
+	UnlabelledBasicStatement = AssignmentStatement | GoToStatement | DummyStatement | 
++	ProcedureStatement
+
+	BasicStatement = UnlabelledBasicStatement | Label ':' *BasicStatement	
+
+	CompoundTail = *Statement ' end ' | *Statement ' ; ' *CompoundTail
+
+	BlockHead = 'begin ' Declaration | Declaration ' ; ' *BlockHead
+	
+	UnlabelledCompound = 'begin ' CompoundTail
+
+	UnlabelledBlock = BlockHead ' ; ' CompoundTail
+
+	CompoundStatement = UnlabelledCompound | Label ':' *CompoundStatement
+
+	Block = UnlabelledBlock | Label ':' *Block
+
+	UnconditionalStatement = BasicStatement | *ForStatement | CompoundStatement | Block
+
+	Statement = UnconditionalStatement | ConditionalStatement	| CommentStatement
+
+	ForStatement = ForClause Statement | Label ':' *ForStatement
+
+
+Nextline	Program = INPUT	:F(YES)
+	Program POS(0) Statement RPOS(0)	:S(Nextline) F(NO)
+YES	OUTPUT = "Yes"	:(DONE)
+NO	OUTPUT = "No"
+DONE	
+END
